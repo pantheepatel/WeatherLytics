@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, StatusBar, SafeAreaView, Image, TextInput, TouchableOpacity, Text, ScrollView, PermissionsAndroid } from 'react-native';
 import Colors from '../constants/Colors';
 import tw from 'twrnc';
-import { MagnifyingGlassIcon, CalendarDaysIcon } from 'react-native-heroicons/outline';
+import { MagnifyingGlassIcon, CalendarDaysIcon, BellIcon } from 'react-native-heroicons/outline';
 import { MapPinIcon } from 'react-native-heroicons/solid';
 import { debounce } from 'lodash';
 import { fetchLocation, fetchForecast } from '../api/weather';
 import * as Progress from 'react-native-progress';
+import { requestForegroundPermissionsAsync, reverseGeocodeAsync, watchPositionAsync } from 'expo-location'
 
 function HomeScreen() {
     const colors = {
@@ -43,13 +44,33 @@ function HomeScreen() {
     const debouncedSearch = useCallback(debounce(handleSearch, 600), []);
     const { current, location } = weather;
 
-    useEffect(() => { fetchLocalWeather() }, []);
+    useEffect(() => {
+        // if (loading && !err)
+        askLocation();
+        // fetchLocalWeather();
+    }, []);
 
-    const fetchLocalWeather = async () => {
-        fetchForecast({ city: 'Ahmedabad', days: 5 }).then((response) => {
+    const fetchLocalWeather = async (q) => {
+        console.log("q : ", q)
+        fetchForecast({ city: q, days: 5 }).then((response) => {
+            console.log("response : ", response)
             setWeather(response);
             setLoading(false);
         });
+    }
+
+    const askLocation = async () => {
+        console.log("askLocation")
+        try {
+            await requestForegroundPermissionsAsync();
+            await watchPositionAsync({ accuracy: 2 }, (location) => {
+                console.log("lat , lon : ", location.coords.latitude, location.coords.longitude);
+                fetchLocalWeather(`${location.coords.latitude},${location.coords.longitude}`);
+            });
+        } catch (error) {
+            console.log("error : ", error);
+            askLocation();
+        }
     }
 
     return (
@@ -64,46 +85,56 @@ function HomeScreen() {
                     </View>
                     :
                     <View>
-                        <View style={[tw`mx-4 mt-12 z-10 justify-center`, { height: showSearch ? 'auto' : '7%' }]}>
-                            <View style={[tw`flex-row justify-end items-center rounded-full z-20 bg-pink-200`,
-                            { backgroundColor: showSearch ? 'rgba(255,255,255,0.2)' : 'transparent' }]}>
-                                {
-                                    showSearch &&
-                                    <TextInput
-                                        placeholder="Search City"
-                                        placeholderTextColor={colors.white}
-                                        autoFocus={true}
-                                        style={[tw`pl-6 flex-1 text-base text-white text-lg`, { backgroundColor: 'transparent' }]}
-                                        onChangeText={debouncedSearch}
-                                    />
-                                }
-                                <TouchableOpacity style={[tw`rounded-full p-3`, { backgroundColor: 'rgba(255,255,255,0.4)' }]}
-                                    onPress={() => setShowSearch(!showSearch)}>
-                                    <MagnifyingGlassIcon style={tw`text-white`} size="25" color="white" />
-                                </TouchableOpacity>
-                            </View>
-                            {
-                                showSearch && locations.length > 0 &&
-                                <View style={[tw`absolute w-full bg-gray-200 rounded-2xl top-16 py-1`]}>
-                                    {locations.map((loc, index) => (
-                                        <TouchableOpacity
-                                            key={index}
-                                            onPress={() => handleLocation(loc)}
-                                            style={[tw`flex-row items-center py-3 px-4`, index < locations.length - 1 ? tw`border-b-2 border-b-gray-400` : ``]}>
-                                            <MapPinIcon size="16" color="gray" />
-                                            <Text style={tw`ml-1 text-black`}>{loc?.name}, {loc?.country}</Text>
-                                        </TouchableOpacity>
-                                    ))}
+                        <View style={[tw`px-5 mt-12 z-10 justify-between flex flex-row`, {}]}>
+                            <View style={tw`w-70`}>
+                                <View style={[tw`flex-row justify-start items-center rounded-full z-20`,
+                                { backgroundColor: showSearch ? 'rgba(255,255,255,0.2)' : 'transparent' }]}>
+                                    <TouchableOpacity style={[tw`rounded-full p-3`, { backgroundColor: 'rgba(255,255,255,0.4)' }]}
+                                        onPress={() => setShowSearch(!showSearch)}>
+                                        <MagnifyingGlassIcon style={tw`text-white`} size="25" color="white" />
+                                    </TouchableOpacity>
+                                    {
+                                        showSearch &&
+                                        <TextInput
+                                            placeholder="Search City"
+                                            placeholderTextColor={colors.white}
+                                            autoFocus={true}
+                                            style={[tw`pl-3 flex-1 text-base text-white text-lg`, { backgroundColor: 'transparent' }]}
+                                            onChangeText={debouncedSearch}
+                                        />
+                                    }
                                 </View>
-                            }
+                                {
+                                    showSearch && locations.length > 0 &&
+                                    <View style={[tw`absolute w-full bg-gray-200 rounded-2xl top-16 py-1`]}>
+                                        {locations.map((loc, index) => (
+                                            <TouchableOpacity
+                                                key={index}
+                                                onPress={() => handleLocation(loc)}
+                                                style={[tw`flex-row items-center py-3 px-4`, index < locations.length - 1 ? tw`border-b-2 border-b-gray-400` : ``]}>
+                                                <MapPinIcon size="16" color="gray" />
+                                                <Text style={tw`ml-1 text-black`}>{loc?.name}, {loc?.country}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                }
+                            </View>
+
+                            {/* notification btn */}
+                            <TouchableOpacity style={[tw`rounded-full p-3`, {}]}
+                                onPress={() => setShowSearch(!showSearch)}>
+                                <BellIcon style={tw`text-white`} size="25" color="white" />
+                            </TouchableOpacity>
+
                         </View>
-                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={tw`pb-20`}>
-                            <View style={tw`content-around flex items-center`}>
+
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={tw`pb-20 py-2`}>
+                            <View style={[tw`content-around flex items-center`]}>
                                 <Text style={[tw`text-3xl font-bold pt-4 px-3`, { color: colors.white }]}>
                                     {location?.name},
                                     <Text style={[tw`text-xl`, { color: colors.white }]}> {location?.country} </Text>
                                 </Text>
-                                <Image source={{ uri: 'https:' + current?.condition?.icon }} style={[tw`w-34 h-34`,{}]} />
+                                <Image source={{ uri: 'https:' + current?.condition?.icon }} style={[tw`w-34 h-34`, {}]} />
                                 <View style={tw`items-center`}>
                                     <Text style={[tw`text-5xl font-bold pt-2`, { color: colors.white }]}>{current?.temp_c}&#176;c</Text>
                                     <Text style={[tw`text-lg font-medium w-85 text-center`, { color: colors.white }]}>{current?.condition?.text}</Text>
