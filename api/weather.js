@@ -1,7 +1,8 @@
 import axios from 'axios';
-import { apikey } from '../constants/index';
+// import { apikey } from '../constants/index';
+const apikey = "7df6bd28e36e4827a95160655241206";
 
-const forecast = params => `https://api.weatherapi.com/v1/forecast.json?key=${apikey}&q=${params.city}&days=${params.days}&aqi=no&alerts=no`;
+const forecast = params => `https://api.weatherapi.com/v1/forecast.json?key=${apikey}&q=${params.city}&days=${params.days}&aqi=yes&alerts=no`;
 const location = params => `https://api.weatherapi.com/v1/search.json?key=${apikey}&q=${params.city}`;
 
 const apicall = async (endpoint) => {
